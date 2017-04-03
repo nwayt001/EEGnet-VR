@@ -14,7 +14,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn import metrics
 from sklearn import utils
 class EEGNet(object):
-    def __init__(self, nb_classes=2, numChans = 64, numSamples = 128, regRate = 0.01, dropoutRate = 0.25, type = 'V1', display_models = False):
+    def __init__(self, nb_classes=2, numChans = 64, numSamples = 128, regRate = 0.01, dropoutRate = 0.25, type = 'VR', display_models = False):
         self.nb_classes = nb_classes
         self.numChans = numChans
         self.numSamples = numSamples
@@ -30,7 +30,7 @@ class EEGNet(object):
         elif type == 'VR':
             self.EEGNetVR()
     
-    def EEGNetVR(self, nb_classes=2, numChans=64, num_eeg_samples = 385, regRate=0.05, dropoutRate = 0.25,
+    def EEGNetVR(self, nb_classes=2, numChans=64, num_eeg_samples = 385, regRate=0.001, dropoutRate = 0.1,
                  num_head_rotation_samples = 152, num_pupil_samples=241, num_dwell_time_samples=1):
         
         ## EEG Data
@@ -64,14 +64,14 @@ class EEGNet(object):
             plot(self.eeg_model,to_file='EEG_model.png')
         # Head Rotation Data        
         head_rotation_input = Input((num_head_rotation_samples,1))        
-        x = Convolution1D(8,20,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(head_rotation_input)
+        x = Convolution1D(4,20,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(head_rotation_input)
         x = MaxPooling1D(pool_length=2)(x)
         x = Convolution1D(4,20,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         x = MaxPooling1D(pool_length=2)(x)
-        x = Convolution1D(4,10,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
+        x = Convolution1D(4,5,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         x = MaxPooling1D(pool_length=2)(x)
         x = Flatten()(x)
-        head_rotation = Dense(10,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
+        head_rotation = Dense(5,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         head_rotation_output = Dense(nb_classes,activation='softmax')(head_rotation)
         self.head_rotation_model = Model(input = head_rotation_input, output = head_rotation_output)
         if self.display_models:
@@ -79,14 +79,16 @@ class EEGNet(object):
             plot(self.head_rotation_model,to_file='head_rotation_model.png')
         # pupilometry Data
         pupil_input = Input((num_pupil_samples,1))        
-        x = Convolution1D(8,100,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(pupil_input)
-        x = MaxPooling1D(pool_length=2)(x)
+        x = AveragePooling1D(pool_length=2)(pupil_input)
+        #x = AveragePooling1D(pool_length=2)(x)
         x = Convolution1D(4,20,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         x = MaxPooling1D(pool_length=2)(x)
         x = Convolution1D(4,10,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         x = MaxPooling1D(pool_length=2)(x)
+        x = Convolution1D(4,10,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
+        x = MaxPooling1D(pool_length=2)(x)
         x = Flatten()(x)
-        pupil = Dense(10,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
+        pupil = Dense(5,activation='elu',W_regularizer=l1l2(l1=0.0, l2=regRate))(x)
         pupil_output = Dense(nb_classes,activation='softmax')(pupil)
         self.pupil_model = Model(input = pupil_input, output = pupil_output)
         if self.display_models:
@@ -302,7 +304,7 @@ if __name__ == '__main__':
     np.random.seed(123)
     
     # Load Training Data
-    data = sp.io.loadmat('/home/waytowich/Dropbox/training_data/training_data.mat')
+    data = sp.io.loadmat('data/training_data_v1.mat')
     
     # Only validation, no test for now
     num_sub = 6
