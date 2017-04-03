@@ -306,16 +306,25 @@ if __name__ == '__main__':
     # Load Training Data
     data = sp.io.loadmat('data/training_data_v1.mat')
     
+    # Train/Test which models
+    run_combined = True
+    run_eeg = False
+    run_head = False
+    run_pupil = False
+    run_dwell = False
+
+    
     # Only validation, no test for now
-    num_sub = 6
+    num_sub = 7
     nb_classes = 2
     batch_size = 64
-    nb_epochs = 100
+    nb_epochs = 50
     
+
     cv = np.zeros((num_sub,num_sub))
     for idx, c in enumerate(cv):
         c[idx] = 1.0
-        
+        c[(idx+1)%num_sub] = 2.0
 
     sub = data['subject']
     eeg = data['EEG'].astype('float32')
@@ -331,151 +340,218 @@ if __name__ == '__main__':
     AUC_pupil_model=[]
     AUC_dwell_model=[]
     for i in range(num_sub):        
+        
         valsub = np.where(cv[i]==1)[0][0]
         valsub = valsub+1
-        train_idx = np.where(sub!=valsub)[1]
+        testsub = np.where(cv[i]==2)[0][0]
+        testsub = testsub+1        
+        train_idx = np.where((sub!=valsub) & (sub!=testsub))[1]
         val_idx = np.where(sub==valsub)[1]
-
-        # eeg data        
-        train_eeg = eeg[:,:,train_idx]
-        train_eeg = np.transpose(train_eeg,(2,0,1))
-        train_eeg = np.reshape(train_eeg,train_eeg.shape + (1,))
-        val_eeg = eeg[:,:,val_idx]
-        val_eeg = np.transpose(val_eeg,(2,0,1))
-        val_eeg = np.reshape(val_eeg,val_eeg.shape + (1,))
-        
-        # head rotation data
-        train_head = head[train_idx,:]
-        train_head = np.reshape(train_head,train_head.shape + (1,))
-        val_head = head[val_idx,:]
-        val_head = np.reshape(val_head,val_head.shape + (1,))
-
-        # pupil data
-        train_pupil = pupil[train_idx,:]
-        train_pupil = np.reshape(train_pupil,train_pupil.shape + (1,))
-        val_pupil = pupil[val_idx,:]
-        val_pupil = np.reshape(val_pupil,val_pupil.shape + (1,))
-
-        # dwell time data
-        train_dwell = dwell[:,train_idx]
-        train_dwell = train_dwell.transpose()
-        train_dwell = np.reshape(train_dwell,train_dwell.shape + (1,))
-        val_dwell = dwell[:,val_idx]
-        val_dwell = val_dwell.transpose()
-        val_dwell = np.reshape(val_dwell,val_dwell.shape + (1,))
+        test_idx = np.where(sub==testsub)[1]
         
         # classification labels
         y_train = labels[:,train_idx]
+        # balance class labels
+        idx_c0 = np.where(y_train==0)[1]
+        idx_c1 = np.where(y_train==1)[1]
+        rand_idx = np.random.permutation(len(idx_c0))
+        idx_c0_new = idx_c0[rand_idx[:len(idx_c1)]]
+        idx = np.concatenate((idx_c0_new,idx_c1))
+        #idx = idx[np.random.permutation(len(idx))]
+        y_train = y_train[:,idx]
         y_train = np_utils.to_categorical(y_train,nb_classes)
+        
         y_val = labels[:,val_idx]
+        idx_c0 = np.where(y_val==0)[1]
+        idx_c1 = np.where(y_val==1)[1]
+        rand_idx = np.random.permutation(len(idx_c0))
+        idx_c0_new = idx_c0[rand_idx[:len(idx_c1)]]
+        idx_val = np.concatenate((idx_c0_new,idx_c1))
+        #idx_val = idx_val[np.random.permutation(len(idx_val))]
+        y_val = y_val[:,idx_val]
         y_val = np_utils.to_categorical(y_val,nb_classes)
+        
+        y_test = labels[:,test_idx]
+        idx_c0 = np.where(y_test==0)[1]
+        idx_c1 = np.where(y_test==1)[1]
+        rand_idx = np.random.permutation(len(idx_c0))
+        idx_c0_new = idx_c0[rand_idx[:len(idx_c1)]]
+        idx_test = np.concatenate((idx_c0_new,idx_c1))
+        #idx_test = idx_test[np.random.permutation(len(idx_test))]
+        y_test = y_test[:,idx_test]
+        y_test = np_utils.to_categorical(y_test,nb_classes)
+        
+        # eeg data        
+        train_eeg = eeg[:,:,train_idx]
+        train_eeg = train_eeg[:,:,idx]
+        train_eeg = np.transpose(train_eeg,(2,0,1))
+        train_eeg = np.reshape(train_eeg,train_eeg.shape + (1,))
+        
+        val_eeg = eeg[:,:,val_idx]
+        val_eeg = eeg[:,:,idx_val]
+        val_eeg = np.transpose(val_eeg,(2,0,1))
+        val_eeg = np.reshape(val_eeg,val_eeg.shape + (1,))
+        
+        test_eeg = eeg[:,:,test_idx]
+        test_eeg = eeg[:,:,idx_test]
+        test_eeg = np.transpose(test_eeg,(2,0,1))
+        test_eeg = np.reshape(test_eeg,test_eeg.shape + (1,))
+        
+        
+        # head rotation data
+        train_head = head[train_idx,:]
+        train_head = train_head[idx,:]
+        train_head = np.reshape(train_head,train_head.shape + (1,))
+        
+        val_head = head[val_idx,:]
+        val_head = val_head[idx_val,:]
+        val_head = np.reshape(val_head,val_head.shape + (1,))
 
+        test_head = head[test_idx,:]
+        test_head = test_head[idx_test,:]
+        test_head = np.reshape(test_head,test_head.shape + (1,))
+        
+        # pupil data
+        train_pupil = pupil[train_idx,:]
+        train_pupil = train_pupil[idx,:]
+        train_pupil = np.reshape(train_pupil,train_pupil.shape + (1,))
+        
+        val_pupil = pupil[val_idx,:]
+        val_pupil = pupil[idx_val,:]
+        val_pupil = np.reshape(val_pupil,val_pupil.shape + (1,))
+        
+        test_pupil = pupil[test_idx,:]
+        test_pupil = pupil[idx_test,:]
+        test_pupil = np.reshape(test_pupil,test_pupil.shape + (1,))
+
+        # dwell time data
+        train_dwell = dwell[:,train_idx]
+        train_dwell = train_dwell[:,idx]
+        train_dwell = train_dwell.transpose()
+        train_dwell = np.reshape(train_dwell,train_dwell.shape + (1,))
+        
+        val_dwell = dwell[:,val_idx]
+        val_dwell = val_dwell[:,idx_val]
+        val_dwell = val_dwell.transpose()
+        val_dwell = np.reshape(val_dwell,val_dwell.shape + (1,))
+        
+        test_dwell = dwell[:,test_idx]
+        test_dwell = test_dwell[:,idx_test]
+        test_dwell = test_dwell.transpose()
+        test_dwell = np.reshape(test_dwell,test_dwell.shape + (1,))
+        
         # TRAIN / TEST COMBINED MODEL
-        EEGnet = EEGNet(type = 'VR')
-        weightsfilename = 'weights/CombinedModelWeightsV2_fold' + str(i) +'.hf5'
-        checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
-                                       save_best_only = True)
-        
-        # Train Combined model
-        hist = EEGnet.model.fit([train_eeg, train_head, train_pupil, train_dwell],y_train,
-                         batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
-                         validation_data = ([val_eeg, val_head, val_pupil, val_dwell],y_val),
-                         callbacks = [checkpointer], class_weight = {0:1., 1:1.25})
-        
-        # load in best validation
-        EEGnet.model.load_weights(weightsfilename)
-        
-        # calculate auc
-        probs = EEGnet.model.predict([val_eeg, val_head, val_pupil, val_dwell])
-        fpr, tpr, thresholds = metrics.roc_curve(y_val[:,1], probs[:,1], pos_label=1)
-        AUC = metrics.auc(fpr, tpr)
-        print('Combined Model AUC: ', AUC)
-        AUC_combined_model.append(AUC)
-        
+        if run_combined:
+            EEGnet = EEGNet(type = 'VR')
+            weightsfilename = 'weights/CombinedModelWeightsV3_equalClass_fold' + str(i) +'.hf5'
+            checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                           save_best_only = True)
+            
+            # Train Combined model
+            hist = EEGnet.model.fit([train_eeg, train_head, train_pupil, train_dwell],y_train,
+                             batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                             validation_data = ([val_eeg, val_head, val_pupil, val_dwell],y_val),
+                             callbacks = [checkpointer]) #class_weight = {0:1., 1:1.25}
+                            
+            
+            # load in best validation
+            EEGnet.model.load_weights(weightsfilename)
+            
+            # calculate auc
+            probs = EEGnet.model.predict([test_eeg, test_head, test_pupil, test_dwell])
+            fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+            AUC = metrics.auc(fpr, tpr)
+            print('Combined Model AUC: ', AUC)
+            AUC_combined_model.append(AUC)
+            
         
         # TRAIN / TEST EEG MODEL
-        EEGnet = EEGNet(type = 'VR')
-        weightsfilename = 'weights/EEGModelWeights_fold' + str(i) +'.hf5'
-        checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
-                                       save_best_only = True)
-        
-        # Train EEG model only
-        hist = EEGnet.eeg_model.fit(train_eeg,y_train,
-                         batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
-                         validation_data = (val_eeg,y_val),
-                         callbacks = [checkpointer])
-        
-        # load in best validation
-        EEGnet.eeg_model.load_weights(weightsfilename)
-        # calculate auc
-        probs = EEGnet.eeg_model.predict(val_eeg)
-        fpr, tpr, thresholds = metrics.roc_curve(y_val[:,1], probs[:,1], pos_label=1)
-        AUC = metrics.auc(fpr, tpr)
-        print(['EEG Model AUC: ', AUC])
-        AUC_eeg_model.append(AUC)
-        
+        if run_eeg:
+            EEGnet = EEGNet(type = 'VR')
+            weightsfilename = 'weights/EEGModelWeights_fold' + str(i) +'.hf5'
+            checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                           save_best_only = True)
+            
+            # Train EEG model only
+            hist = EEGnet.eeg_model.fit(train_eeg,y_train,
+                             batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                             validation_data = (val_eeg,y_val),
+                             callbacks = [checkpointer])
+            
+            # load in best validation
+            EEGnet.eeg_model.load_weights(weightsfilename)
+            # calculate auc
+            probs = EEGnet.eeg_model.predict(test_eeg)
+            fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+            AUC = metrics.auc(fpr, tpr)
+            print(['EEG Model AUC: ', AUC])
+            AUC_eeg_model.append(AUC)
+            
         # TRAIN / TEST HEAD MODEL
-        EEGnet = EEGNet(type = 'VR')
-        weightsfilename = 'weights/HeadModelWeights_fold' + str(i) +'.hf5'
-        checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
-                                       save_best_only = True)
-        
-        # Train EEG model only
-        hist = EEGnet.head_rotation_model.fit(train_head,y_train,
-                         batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
-                         validation_data = (val_head,y_val),
-                         callbacks = [checkpointer])
-        
-        # load in best validation
-        EEGnet.head_rotation_model.load_weights(weightsfilename)
-        # calculate auc
-        probs = EEGnet.head_rotation_model.predict(val_head)
-        fpr, tpr, thresholds = metrics.roc_curve(y_val[:,1], probs[:,1], pos_label=1)
-        AUC = metrics.auc(fpr, tpr)
-        print(['Head Model AUC: ', AUC])
-        AUC_head_model.append(AUC)
-        
+        if run_head:
+            EEGnet = EEGNet(type = 'VR')
+            weightsfilename = 'weights/HeadModelWeights_fold' + str(i) +'.hf5'
+            checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                           save_best_only = True)
+            
+            # Train EEG model only
+            hist = EEGnet.head_rotation_model.fit(train_head,y_train,
+                             batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                             validation_data = (val_head,y_val),
+                             callbacks = [checkpointer])
+            
+            # load in best validation
+            EEGnet.head_rotation_model.load_weights(weightsfilename)
+            # calculate auc
+            probs = EEGnet.head_rotation_model.predict(test_head)
+            fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+            AUC = metrics.auc(fpr, tpr)
+            print(['Head Model AUC: ', AUC])
+            AUC_head_model.append(AUC)
+            
         # TRAIN / TEST PUPIL MODEL
-        EEGnet = EEGNet(type = 'VR')
-        weightsfilename = 'weights/PupilModelWeights_fold' + str(i) +'.hf5'
-        checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
-                                       save_best_only = True)
-        
-        # Train EEG model only
-        hist = EEGnet.pupil_model.fit(train_pupil,y_train,
-                         batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
-                         validation_data = (val_pupil,y_val),
-                         callbacks = [checkpointer])
-        
-        # load in best validation
-        EEGnet.pupil_model.load_weights(weightsfilename)
-        # calculate auc
-        probs = EEGnet.pupil_model.predict(val_pupil)
-        fpr, tpr, thresholds = metrics.roc_curve(y_val[:,1], probs[:,1], pos_label=1)
-        AUC = metrics.auc(fpr, tpr)
-        print(['Pupil Model AUC: ', AUC])
-        AUC_pupil_model.append(AUC)
-        
+        if run_pupil:
+            EEGnet = EEGNet(type = 'VR')
+            weightsfilename = 'weights/PupilModelWeights_fold' + str(i) +'.hf5'
+            checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                           save_best_only = True)
+            
+            # Train EEG model only
+            hist = EEGnet.pupil_model.fit(train_pupil,y_train,
+                             batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                             validation_data = (val_pupil,y_val),
+                             callbacks = [checkpointer])
+            
+            # load in best validation
+            EEGnet.pupil_model.load_weights(weightsfilename)
+            # calculate auc
+            probs = EEGnet.pupil_model.predict(test_pupil)
+            fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+            AUC = metrics.auc(fpr, tpr)
+            print(['Pupil Model AUC: ', AUC])
+            AUC_pupil_model.append(AUC)
+            
         # TRAIN / TEST DWELL MODEL
-        EEGnet = EEGNet(type = 'VR')
-        weightsfilename = 'weights/DwellModelWeights_fold' + str(i) +'.hf5'
-        checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
-                                       save_best_only = True)
-        
-        # Train EEG model only
-        hist = EEGnet.dwell_model.fit(train_dwell,y_train,
-                         batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
-                         validation_data = (val_dwell,y_val),
-                         callbacks = [checkpointer])
-        
-        # load in best validation
-        EEGnet.dwell_model.load_weights(weightsfilename)
-        # calculate auc
-        probs = EEGnet.dwell_model.predict(val_dwell)
-        fpr, tpr, thresholds = metrics.roc_curve(y_val[:,1], probs[:,1], pos_label=1)
-        AUC = metrics.auc(fpr, tpr)
-        print(['Dwell Model AUC: ', AUC])
-        AUC_dwell_model.append(AUC)
+        if run_dwell:
+            EEGnet = EEGNet(type = 'VR')
+            weightsfilename = 'weights/DwellModelWeights_fold' + str(i) +'.hf5'
+            checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                           save_best_only = True)
+            
+            # Train EEG model only
+            hist = EEGnet.dwell_model.fit(train_dwell,y_train,
+                             batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                             validation_data = (val_dwell,y_val),
+                             callbacks = [checkpointer])
+            
+            # load in best validation
+            EEGnet.dwell_model.load_weights(weightsfilename)
+            # calculate auc
+            probs = EEGnet.dwell_model.predict(test_dwell)
+            fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+            AUC = metrics.auc(fpr, tpr)
+            print(['Dwell Model AUC: ', AUC])
+            AUC_dwell_model.append(AUC)
         
     # save AUC results
     avg_auc_combined = np.mean(AUC_combined_model)
@@ -502,7 +578,7 @@ if __name__ == '__main__':
     results['avg_AUC_pupil'] = avg_auc_pupil
     results['avg_AUC_dwell'] = avg_auc_dwell
 
-    sp.io.savemat('results/resultsV2.mat',results)
+    sp.io.savemat('results/resultsV3_equalClass.mat',results)
 
     
         
