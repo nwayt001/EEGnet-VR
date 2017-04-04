@@ -13,6 +13,7 @@ from keras.utils.visualize_util import plot
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn import metrics
 from sklearn import utils
+
 class EEGNet(object):
     def __init__(self, nb_classes=2, numChans = 64, numSamples = 128, regRate = 0.01, dropoutRate = 0.25, type = 'VR', display_models = False):
         self.nb_classes = nb_classes
@@ -30,7 +31,7 @@ class EEGNet(object):
         elif type == 'VR':
             self.EEGNetVR()
     
-    def EEGNetVR(self, nb_classes=2, numChans=64, num_eeg_samples = 385, regRate=0.001, dropoutRate = 0.1,
+    def EEGNetVR(self, nb_classes=2, numChans=64, num_eeg_samples = 385, regRate=0.05, dropoutRate = 0.2,
                  num_head_rotation_samples = 152, num_pupil_samples=241, num_dwell_time_samples=1):
         
         ## EEG Data
@@ -308,17 +309,17 @@ if __name__ == '__main__':
     
     # Train/Test which models
     run_combined = True
-    run_eeg = False
-    run_head = False
-    run_pupil = False
-    run_dwell = False
+    run_eeg = True
+    run_head = True
+    run_pupil = True
+    run_dwell = True
 
     
     # Only validation, no test for now
     num_sub = 7
     nb_classes = 2
     batch_size = 64
-    nb_epochs = 50
+    nb_epochs = 100
     
 
     cv = np.zeros((num_sub,num_sub))
@@ -443,7 +444,7 @@ if __name__ == '__main__':
         # TRAIN / TEST COMBINED MODEL
         if run_combined:
             EEGnet = EEGNet(type = 'VR')
-            weightsfilename = 'weights/CombinedModelWeightsV3_equalClass_fold' + str(i) +'.hf5'
+            weightsfilename = 'weights/v3_reducedmodel_balanced_clean/CombinedModelWeights_fold' + str(i) +'.hf5'
             checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                            save_best_only = True)
             
@@ -468,7 +469,7 @@ if __name__ == '__main__':
         # TRAIN / TEST EEG MODEL
         if run_eeg:
             EEGnet = EEGNet(type = 'VR')
-            weightsfilename = 'weights/EEGModelWeights_fold' + str(i) +'.hf5'
+            weightsfilename = 'weights/v3_reducedmodel_balanced_clean/EEGModelWeights_fold' + str(i) +'.hf5'
             checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                            save_best_only = True)
             
@@ -490,7 +491,7 @@ if __name__ == '__main__':
         # TRAIN / TEST HEAD MODEL
         if run_head:
             EEGnet = EEGNet(type = 'VR')
-            weightsfilename = 'weights/HeadModelWeights_fold' + str(i) +'.hf5'
+            weightsfilename = 'weights/v3_reducedmodel_balanced_clean/HeadModelWeights_fold' + str(i) +'.hf5'
             checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                            save_best_only = True)
             
@@ -512,7 +513,7 @@ if __name__ == '__main__':
         # TRAIN / TEST PUPIL MODEL
         if run_pupil:
             EEGnet = EEGNet(type = 'VR')
-            weightsfilename = 'weights/PupilModelWeights_fold' + str(i) +'.hf5'
+            weightsfilename = 'weights/v3_reducedmodel_balanced_clean/PupilModelWeights_fold' + str(i) +'.hf5'
             checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                            save_best_only = True)
             
@@ -534,7 +535,7 @@ if __name__ == '__main__':
         # TRAIN / TEST DWELL MODEL
         if run_dwell:
             EEGnet = EEGNet(type = 'VR')
-            weightsfilename = 'weights/DwellModelWeights_fold' + str(i) +'.hf5'
+            weightsfilename = 'weights/v3_reducedmodel_balanced_clean/DwellModelWeights_fold' + str(i) +'.hf5'
             checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                            save_best_only = True)
             
@@ -578,7 +579,7 @@ if __name__ == '__main__':
     results['avg_AUC_pupil'] = avg_auc_pupil
     results['avg_AUC_dwell'] = avg_auc_dwell
 
-    sp.io.savemat('results/resultsV3_equalClass.mat',results)
+    sp.io.savemat('results/resultsV3_reducedmodel_balanced_clean_reg_05_2.mat',results)
 
     
         
