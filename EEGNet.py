@@ -340,6 +340,7 @@ if __name__ == '__main__':
     pupil = data['pupil'].astype('float32')
     dwell = data['dwell_times'].astype('float32')
     labels = data['stimulus_type'].astype('float32')
+    block = data['block']
     idx = np.where(labels==2)[1]
     labels[:,idx]=0
     AUC_combined_model=[]
@@ -357,7 +358,10 @@ if __name__ == '__main__':
             
             # grad data for subject i
             sub_idx = np.where(sub==i)[1]
-            
+            sub_block = block[0,sub_idx]
+            block_idx=np.where(sub_block>9)[0]       
+            sub_idx = sub_idx[block_idx]
+
             # take 70% train, 15% validate, 15% test
             rand_idx = np.random.permutation(len(sub_idx))
             train_idx = sub_idx[rand_idx[:int(len(sub_idx)*.7)]]
