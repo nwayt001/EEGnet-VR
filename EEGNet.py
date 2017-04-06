@@ -574,5 +574,14 @@ if __name__ == '__main__':
     
         sp.io.savemat('results/results_jenn_r5_single_session.mat',results)
 
-    
+        # make boxplots
+        plotdata = [AUC_combined_model, AUC_eeg_model, AUC_head_model, AUC_pupil_model, AUC_dwell_model]
+
+        fig = plt.figure(1, figsize=(9, 6))
+        # Create an axes instance
+        ax = fig.add_subplot(111)
+        # Create the boxplot
+        bp = ax.boxplot(plotdata)
+        ax.set_xticklabels(['Combined','EEG','Head','Pupil','Dwell'])
+        plt.title('Deep Learning AUC - Jenn data - 10 bootstraped permutations')
         
