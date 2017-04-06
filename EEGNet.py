@@ -571,7 +571,7 @@ if __name__ == '__main__':
         results['avg_AUC_pupil'] = avg_auc_pupil
         results['avg_AUC_dwell'] = avg_auc_dwell
     
-        sp.io.savemat('results/results_jenn_r5_125_1.mat',results)
+        sp.io.savemat('results/results_jenn_r5_single_session.mat',results)
 
     
         
