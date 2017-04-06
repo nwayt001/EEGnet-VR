@@ -13,6 +13,7 @@ from keras.utils.visualize_util import plot
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn import metrics
 from sklearn import utils
+import matplotlib.pyplot as plt
 
 class EEGNet(object):
     def __init__(self, nb_classes=2, numChans = 64, numSamples = 128, regRate = 0.01, dropoutRate = 0.25, type = 'VR', display_models = False):
