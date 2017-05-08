@@ -125,7 +125,7 @@ class EEGNet(object):
             
     
 if __name__ == '__main__':
-    np.random.seed(123)
+    np.random.seed(125)
     
     # Load Training Data
     data = sp.io.loadmat('/home/waytowich/Dropbox/Data_v3/training_data/training_data.mat')
@@ -133,9 +133,9 @@ if __name__ == '__main__':
     # Train/Test which models
     run_combined = True
     run_eeg = True
-    run_head = True
-    run_pupil = True
-    run_dwell = True
+    run_head = False
+    run_pupil = False
+    run_dwell = False
     
     num_sub = 8
     num_bootstrap = 8
@@ -158,18 +158,23 @@ if __name__ == '__main__':
     for i in range(1,np.max(sub)+1):
         if len(np.where(sub==i)[1]!=0):
             sub_list.append(i)
-
-    PARM_L1=[0.0, 0.001, 0.01, 0.1]
-    PARM_L2=[0.0, 0.001, 0.01, 0.1]
-    PARM_DROP=[0.0, 0.01, 0.1, 0.25]
-    PARM_C1_WEIGHT=[2, 3, 4]
+    sub_list=[]
+    sub_list.append(8)
+    #PARM_L1=[0.0, 0.001, 0.01, 0.1]
+    #PARM_L2=[0.0, 0.001, 0.01, 0.1]
+    PARM_L1=[0.001, 0.01, 0.1]
+    PARM_L2=[0.01, 0.1]
+    PARM_DROP=[0.0, 0.25, 0.5]
+    PARM_C1_WEIGHT=[2, 4, 6]
 
     AUC_combined_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
     AUC_eeg_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
     AUC_head_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
     AUC_pupil_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
     AUC_dwell_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
-                                    
+                          
+    # resume from crash
+          
     # class weightings:
     c0_weight = 1.  
     c1_weight = 3.
@@ -179,7 +184,7 @@ if __name__ == '__main__':
             for idxl2, l2_rate in enumerate(PARM_L2):   
                 for idxdrp, drp_rate in enumerate(PARM_DROP):
                     for idxc1, c1_weight in enumerate(PARM_C1_WEIGHT):
-                        for cv in range(8):
+                        for cv in range(4):
                             print('PROCESSING CV FOLD {}  FROM SUB {}'.format(cv,i))
                     
                             # grad data for subject i
@@ -246,8 +251,8 @@ if __name__ == '__main__':
                             
                             # TRAIN / TEST COMBINED MODEL
                             if run_combined:
-                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, droptoutRate = drp_rate)
-                                weightsfilename = 'weights/optimization/CombinedModelWeights_fold' + str(i) +'.hf5'
+                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                                weightsfilename = 'weights/optimization/CombinedModelWeights_sub8_fold' + str(i) +'.hf5'
                                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                                save_best_only = True)
                                 
@@ -270,8 +275,8 @@ if __name__ == '__main__':
                             
                             # TRAIN / TEST EEG MODEL
                             if run_eeg:
-                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, droptoutRate = drp_rate)
-                                weightsfilename = 'weights/optimization/EEGModelWeights_fold' + str(i) +'.hf5'
+                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                                weightsfilename = 'weights/optimization/EEGModelWeights_sub8_fold' + str(i) +'.hf5'
                                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                                save_best_only = True)
                                 
@@ -292,8 +297,8 @@ if __name__ == '__main__':
                                 
                             # TRAIN / TEST HEAD MODEL
                             if run_head:
-                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, droptoutRate = drp_rate)
-                                weightsfilename = 'weights/optimization/HeadModelWeights_fold' + str(i) +'.hf5'
+                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                                weightsfilename = 'weights/optimization/HeadModelWeights_sub8_fold' + str(i) +'.hf5'
                                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                                save_best_only = True)
                                 
@@ -314,8 +319,8 @@ if __name__ == '__main__':
                                 
                             # TRAIN / TEST PUPIL MODEL
                             if run_pupil:
-                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, droptoutRate = drp_rate)
-                                weightsfilename = 'weights/optimization/PupilModelWeights_fold' + str(i) +'.hf5'
+                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                                weightsfilename = 'weights/optimization/PupilModelWeights_sub8_fold' + str(i) +'.hf5'
                                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                                save_best_only = True)
                                 
@@ -336,8 +341,8 @@ if __name__ == '__main__':
                                 
                             # TRAIN / TEST DWELL MODEL
                             if run_dwell:
-                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, droptoutRate = drp_rate)
-                                weightsfilename = 'weights/optimization/DwellModelWeights_fold' + str(i) +'.hf5'
+                                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                                weightsfilename = 'weights/optimization/DwellModelWeights_sub8_fold' + str(i) +'.hf5'
                                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                                save_best_only = True)
                                 
@@ -362,7 +367,32 @@ if __name__ == '__main__':
                             results['AUC_head'] = AUC_head_model
                             results['AUC_pupil'] = AUC_pupil_model
                             results['AUC_dwell'] = AUC_dwell_model  
-                    
-                            sp.io.savemat('results/results_optimization.mat',results)
+                            results['Curr_L1'] = l1_rate
+                            results['Curr_L2'] = l2_rate
+                            results['Curr_drop'] = drp_rate
+                            results['Curr_C1'] = c1_weight
+                            results['Curr_cv'] = cv
+                            results['Curr_sub'] = i
+                            sp.io.savemat('results/results_optimization_sub8_afterCrash.mat',results)
         
-        
+    # Analyze Results
+    #res = sp.io.loadmat('results/results_optimization.mat')
+    
+    # Look to see how far the optimization got
+    # data struct:
+    # L1 x L2 x Drop x C1 x cv x sub
+    #combined = res['AUC_combined']
+    
+    #l1 = combined[:,0,0,0,0,0]
+    #l2 = combined[0,:,0,0,4,0]
+
+    #tmp = (combined == 0).astype(int)
+    
+   # combined[np.where(tmp==1)]=None
+    # do nan mean
+    
+
+    
+    
+    
+    
