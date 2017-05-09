@@ -128,20 +128,20 @@ if __name__ == '__main__':
     np.random.seed(125)
     
     # Load Training Data
-    data = sp.io.loadmat('/home/waytowich/Dropbox/Data_v3/training_data/training_data.mat')
+    data = sp.io.loadmat('training_data.mat')
     
     # Train/Test which models
     run_combined = True
-    run_eeg = True
+    run_eeg = False
     run_head = False
     run_pupil = False
     run_dwell = False
     
-    num_sub = 8
-    num_bootstrap = 8
+    num_sub = 1
+    num_bootstrap = 4
     nb_classes = 2
     batch_size = 64
-    nb_epochs = 150
+    nb_epochs = 50
 
     sub = data['subject']
     eeg = data['EEG'].astype('float32')
@@ -160,18 +160,25 @@ if __name__ == '__main__':
             sub_list.append(i)
     sub_list=[]
     sub_list.append(8)
-    #PARM_L1=[0.0, 0.001, 0.01, 0.1]
-    #PARM_L2=[0.0, 0.001, 0.01, 0.1]
-    PARM_L1=[0.001, 0.01, 0.1]
-    PARM_L2=[0.01, 0.1]
+    PARM_L1=[0.0, 0.001, 0.01, 0.1]
+    PARM_L2=[0.0, 0.001, 0.01, 0.1]
+    #PARM_L1=[0.001, 0.01, 0.1]
+    #PARM_L2=[0.01, 0.1]
     PARM_DROP=[0.0, 0.25, 0.5]
     PARM_C1_WEIGHT=[2, 4, 6]
 
-    AUC_combined_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
-    AUC_eeg_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
-    AUC_head_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
-    AUC_pupil_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
-    AUC_dwell_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
+    # Best Parms from optimization of subject 8
+    L1 = 0.001
+    L2 = 0.01
+    Dropout = 0.5
+    C1 = 6
+
+
+    AUC_combined_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap))
+    AUC_eeg_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap))
+    AUC_head_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap))
+    AUC_pupil_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap))
+    AUC_dwell_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap))
                           
     # resume from crash
           
@@ -179,12 +186,12 @@ if __name__ == '__main__':
     c0_weight = 1.  
     c1_weight = 3.
     t = time.time()
-    for idxi,i in enumerate(sub_list): 
-        for idxl1, l1_rate in enumerate(PARM_L1):
-            for idxl2, l2_rate in enumerate(PARM_L2):   
-                for idxdrp, drp_rate in enumerate(PARM_DROP):
-                    for idxc1, c1_weight in enumerate(PARM_C1_WEIGHT):
-                        for cv in range(4):
+    for cv in range(4):
+        for idxi,i in enumerate(sub_list): 
+            for idxl1, l1_rate in enumerate(PARM_L1):
+                for idxl2, l2_rate in enumerate(PARM_L2):   
+                    for idxdrp, drp_rate in enumerate(PARM_DROP):
+                        for idxc1, c1_weight in enumerate(PARM_C1_WEIGHT):                    
                             print('PROCESSING CV FOLD {}  FROM SUB {}'.format(cv,i))
                     
                             # grad data for subject i
@@ -270,7 +277,7 @@ if __name__ == '__main__':
                                 fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
                                 AUC = metrics.auc(fpr, tpr)
                                 print('Combined AUC: {}, Parms: {},{},{},{},{},{}'.format(AUC,l1_rate,l2_rate,drp_rate,c1_weight,cv,i))
-                                AUC_combined_model[idxl1,idxl2,idxdrp,idxc1,cv,idxi] = AUC
+                                AUC_combined_model[idxl1,idxl2,idxdrp,idxc1,cv] = AUC
                                 
                             
                             # TRAIN / TEST EEG MODEL
@@ -373,7 +380,7 @@ if __name__ == '__main__':
                             results['Curr_C1'] = c1_weight
                             results['Curr_cv'] = cv
                             results['Curr_sub'] = i
-                            sp.io.savemat('results/results_optimization_sub8_afterCrash.mat',results)
+                            sp.io.savemat('results/results_optimization_sub8_startAnew.mat',results)
         
     # Analyze Results
     #res = sp.io.loadmat('results/results_optimization.mat')
@@ -390,8 +397,46 @@ if __name__ == '__main__':
     
    # combined[np.where(tmp==1)]=None
     # do nan mean
+    num_sub = 8
+    num_bootstrap = 4
+    nb_classes = 2
+    batch_size = 64
+    nb_epochs = 150
+    PARM_L1=[0.0, 0.001, 0.01, 0.1]
+    PARM_L2=[0.0, 0.001, 0.01, 0.1]
+    #PARM_L1=[0.001, 0.01, 0.1]
+    #PARM_L2=[0.01, 0.1]
+    PARM_DROP=[0.0, 0.25, 0.5]
+    PARM_C1_WEIGHT=[2, 4, 6]
+    
+    AUC_combined_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,1))
+    AUC_eeg_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
+    AUC_head_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
+    AUC_pupil_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
+    AUC_dwell_model=np.zeros((len(PARM_L1),len(PARM_L2),len(PARM_DROP),len(PARM_C1_WEIGHT),num_bootstrap,len(sub_list)))
+    
+    
+    for i in range(4):  # L1
+        for j in range(4):  # L2
+            for k in range(3):  # Drop
+                for l in range(3):  # C1
+                    for m in range(4):  # cv
+                        if(j>=2 and i>=1):
+                            AUC_combined_model[i,j,k,l,m,0] = res2['AUC_combined'][i-1,j-2,k,l,m,0]
+                        else:
+                            AUC_combined_model[i,j,k,l,m,0] = res1['AUC_combined'][i,j,k,l,m,0]
+                        
+    
     
 
+    
+    
+    
+    
+    
+    
+    
+    
     
     
     
