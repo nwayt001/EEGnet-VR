@@ -110,6 +110,10 @@ class EEGNet(object):
             print(self.model.summary())
             plot(self.model,to_file='model.png')
 
+        merged_features2 = merge([eeg, pupil, dwell], mode = 'concat')
+        combined_output2 = Dense(nb_classes, activation='softmax',W_regularizer=l1l2(l1=l1rate, l2=l2rate))(merged_features2)
+        self.model2 = Model(input = [eeg_input, pupil_input, dwell_input], output = combined_output2)
+        
         # define custom metric for AUC
         def auc(y_true, y_pred):
             fpr, tpr, thresholds = metrics.roc_curve(y_true[:,1],y_pred[:,1], pos_label=1)
@@ -122,7 +126,7 @@ class EEGNet(object):
         self.pupil_model.compile(optimizer = 'adam',loss = 'categorical_crossentropy',metrics=['accuracy'])
         self.dwell_model.compile(optimizer = 'adam',loss = 'categorical_crossentropy',metrics=['accuracy'])
         self.model.compile(optimizer = 'adam',loss = 'categorical_crossentropy',metrics=['accuracy'])
-            
+        self.model2.compile(optimizer = 'adam',loss = 'categorical_crossentropy',metrics=['accuracy'])
     
 if __name__ == '__main__':
     np.random.seed(125)
@@ -132,16 +136,17 @@ if __name__ == '__main__':
     
     # Train/Test which models
     run_combined = True
-    run_eeg = True
-    run_head = True
-    run_pupil = True
-    run_dwell = True
+    run_model2 = True
+    run_eeg = False
+    run_head = False
+    run_pupil = False
+    run_dwell = False
     
     num_sub = 8
-    num_bootstrap = 10
+    num_bootstrap = 20
     nb_classes = 2
     batch_size = 64
-    nb_epochs = 50
+    nb_epochs = 150
 
     sub = data['subject']
     eeg = data['EEG'].astype('float32')
@@ -159,11 +164,12 @@ if __name__ == '__main__':
         if len(np.where(sub==i)[1]!=0):
             sub_list.append(i)
    
-    AUC_combined_model=np.zeros((num_bootstrap, len(sub_list)))
-    AUC_eeg_model=np.zeros((num_bootstrap, len(sub_list)))
-    AUC_head_model=np.zeros((num_bootstrap, len(sub_list)))
-    AUC_pupil_model=np.zeros((num_bootstrap, len(sub_list)))
-    AUC_dwell_model=np.zeros((num_bootstrap, len(sub_list)))
+    AUC_combined_model=np.zeros((len(sub_list),num_bootstrap))
+    AUC_model2_no_head=np.zeros((len(sub_list),num_bootstrap))
+    AUC_eeg_model=np.zeros((len(sub_list),num_bootstrap))
+    AUC_head_model=np.zeros((len(sub_list),num_bootstrap))
+    AUC_pupil_model=np.zeros((len(sub_list),num_bootstrap))
+    AUC_dwell_model=np.zeros((len(sub_list),num_bootstrap))
           
     # Final hyperparameters from optimization:
     c0_weight = 1.  
@@ -173,8 +179,9 @@ if __name__ == '__main__':
     drp_rate = 0.5
     
     t = time.time()
-    for idxi,i in enumerate(sub_list): 
-        for cv in range(10):
+    for cv in range(10):
+        for idxi,i in enumerate(sub_list): 
+        
             print('PROCESSING CV FOLD {}  FROM SUB {}'.format(cv,i))
             
             # grad data for subject i
@@ -262,7 +269,30 @@ if __name__ == '__main__':
                 print('Combined AUC: {}, Parms: {},{}'.format(AUC,cv,i))
                 AUC_combined_model[idxi,cv] = AUC
                 
-            
+            # TRAIN / TEST NO HEAD MODEL
+            if run_model2:
+                EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
+                weightsfilename = 'weights/optimization/Model2Weights_fold' + str(i) +'.hf5'
+                checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
+                                               save_best_only = True)
+                
+                # Train Combined model
+                hist = EEGnet.model2.fit([train_eeg, train_pupil, train_dwell],y_train,
+                                 batch_size = batch_size, nb_epoch = nb_epochs, verbose=1,
+                                 validation_data = ([val_eeg, val_pupil, val_dwell],y_val),
+                                 callbacks = [checkpointer], class_weight={0:c0_weight, 1:c1_weight}) 
+                
+                # load in best validation
+                EEGnet.model2.load_weights(weightsfilename)
+                
+                # calculate auc
+                probs = EEGnet.model2.predict([test_eeg, test_pupil, test_dwell])
+                fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
+                AUC = metrics.auc(fpr, tpr)
+                print('Combined AUC: {}, Parms: {},{}'.format(AUC,cv,i))
+                AUC_model2_no_head[idxi,cv] = AUC
+                
+                
             # TRAIN / TEST EEG MODEL
             if run_eeg:
                 EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
@@ -357,7 +387,8 @@ if __name__ == '__main__':
             results['AUC_head'] = AUC_head_model
             results['AUC_pupil'] = AUC_pupil_model
             results['AUC_dwell'] = AUC_dwell_model  
-            sp.io.savemat('results/final_results_optimized.mat',results)
+            results['AUC_noHead'] = AUC_model2_no_head
+            sp.io.savemat('results/final_results_optimized_noHead.mat',results)
         
 
     
