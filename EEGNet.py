@@ -136,17 +136,17 @@ if __name__ == '__main__':
     
     # Train/Test which models
     run_combined = True
-    run_model2 = True
+    run_model2 = False
     run_eeg = False
     run_head = False
     run_pupil = False
     run_dwell = False
     
     num_sub = 8
-    num_bootstrap = 20
+    num_bootstrap = 10
     nb_classes = 2
     batch_size = 64
-    nb_epochs = 150
+    nb_epochs = 100
 
     sub = data['subject']
     eeg = data['EEG'].astype('float32')
@@ -171,9 +171,12 @@ if __name__ == '__main__':
     AUC_pupil_model=np.zeros((len(sub_list),num_bootstrap))
     AUC_dwell_model=np.zeros((len(sub_list),num_bootstrap))
           
+    Precision_combined_model=np.zeros((len(sub_list),num_bootstrap))
+    Probs_combined_model = [] 
+    Y_test=[]
     # Final hyperparameters from optimization:
     c0_weight = 1.  
-    c1_weight = 6.
+    c1_weight = 3.
     l1_rate = 0.001
     l2_rate = 0.01
     drp_rate = 0.5
@@ -181,8 +184,9 @@ if __name__ == '__main__':
     t = time.time()
     for cv in range(10):
         for idxi,i in enumerate(sub_list): 
-        
-            print('PROCESSING CV FOLD {}  FROM SUB {}'.format(cv,i))
+            #if(idxi!=6):
+                #continue
+            #print('PROCESSING CV FOLD {}  FROM SUB {}'.format(cv,i))
             
             # grad data for subject i
             sub_idx = np.where(sub==i)[1]
@@ -264,11 +268,18 @@ if __name__ == '__main__':
                 
                 # calculate auc
                 probs = EEGnet.model.predict([test_eeg, test_head, test_pupil, test_dwell])
+                y_pred = np.argmax(probs,axis=-1)
+                precision = metrics.precision_score(y_test[:,1],y_pred)
+                Precision_combined_model[idxi,cv] = precision
+                print('Combined Precision: {}, Parms: {},{}'.format(precision,cv,i))
                 fpr, tpr, thresholds = metrics.roc_curve(y_test[:,1], probs[:,1], pos_label=1)
                 AUC = metrics.auc(fpr, tpr)
                 print('Combined AUC: {}, Parms: {},{}'.format(AUC,cv,i))
                 AUC_combined_model[idxi,cv] = AUC
                 
+                Probs_combined_model.append(probs)
+                Y_test.append(y_test)
+                                  
             # TRAIN / TEST NO HEAD MODEL
             if run_model2:
                 EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
@@ -388,7 +399,10 @@ if __name__ == '__main__':
             results['AUC_pupil'] = AUC_pupil_model
             results['AUC_dwell'] = AUC_dwell_model  
             results['AUC_noHead'] = AUC_model2_no_head
-            sp.io.savemat('results/final_results_optimized_noHead.mat',results)
+            results['Precision_combined'] = Precision_combined_model
+            results['Probs_combined'] = Probs_combined_model
+            results['Y_test'] = Y_test
+            sp.io.savemat('results/final_results_precision.mat',results)
         
 
     
