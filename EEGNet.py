@@ -9,7 +9,7 @@ from keras.layers import Input, Flatten, merge
 from keras.utils import np_utils
 import numpy as np
 import scipy as sp
-from keras.utils.visualize_util import plot
+#from keras.utils.visualize_util import plot
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn import metrics
 from sklearn import utils
@@ -49,7 +49,7 @@ class EEGNet(object):
         self.eeg_model = Model(input=eeg_input, output=eeg_output)        
         if self.display_models:
             print(self.eeg_model.summary())
-            plot(self.eeg_model,to_file='EEG_model.png')
+            #plot(self.eeg_model,to_file='EEG_model.png')
             
         # Head Rotation Data        
         head_rotation_input = Input((num_head_rotation_samples,1))        
@@ -68,7 +68,7 @@ class EEGNet(object):
         self.head_rotation_model = Model(input = head_rotation_input, output = head_rotation_output)
         if self.display_models:
             print(self.head_rotation_model.summary())
-            plot(self.head_rotation_model,to_file='head_rotation_model.png')
+            #plot(self.head_rotation_model,to_file='head_rotation_model.png')
             
         # pupilometry Data
         pupil_input = Input((num_pupil_samples,1))        
@@ -89,7 +89,7 @@ class EEGNet(object):
         self.pupil_model = Model(input = pupil_input, output = pupil_output)
         if self.display_models:
             print(self.pupil_model.summary())
-            plot(self.pupil_model,to_file='pupil_model.png')
+            #plot(self.pupil_model,to_file='pupil_model.png')
         
         # Dwell Data
         dwell_input = Input((num_dwell_time_samples,1))
@@ -99,7 +99,7 @@ class EEGNet(object):
         self.dwell_model = Model(input=dwell_input, output=dwell_output)
         if self.display_models:
             print(self.dwell_model.summary())
-            plot(self.dwell_model,to_file='dwell_model.png')
+            #plot(self.dwell_model,to_file='dwell_model.png')
             
         # Combined Model
         merged_features = merge([eeg, head_rotation, pupil, dwell], mode = 'concat')
@@ -108,7 +108,7 @@ class EEGNet(object):
         self.model = Model(input = [eeg_input, head_rotation_input, pupil_input, dwell_input], output = combined_output)
         if self.display_models:
             print(self.model.summary())
-            plot(self.model,to_file='model.png')
+            #plot(self.model,to_file='model.png')
 
         merged_features2 = merge([eeg, pupil, dwell], mode = 'concat')
         combined_output2 = Dense(nb_classes, activation='softmax',W_regularizer=l1l2(l1=l1rate, l2=l2rate))(merged_features2)
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     np.random.seed(125)
     
     # Load Training Data
-    data = sp.io.loadmat('training_data.mat')
+    data = sp.io.loadmat(r"..\NEDE_VR\data_analysis\Data\training_v4\training_data.mat")
     
     # Train/Test which models
     run_combined = True
@@ -253,7 +253,7 @@ if __name__ == '__main__':
             # TRAIN / TEST COMBINED MODEL
             if run_combined:
                 EEGnet = EEGNet(l1rate = l1_rate, l2rate = l2_rate, dropoutRate = drp_rate)
-                weightsfilename = 'weights/optimization/CombinedModelWeights_fold' + str(i) +'.hf5'
+                weightsfilename = 'weights\optimization\CombinedModelWeights_fold' + str(i) +'.hf5'
                 checkpointer = ModelCheckpoint(filepath = weightsfilename, verbose=0,
                                                save_best_only = True)
                 
